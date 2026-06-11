@@ -1,47 +1,61 @@
 import streamlit as st
 import datetime
 
-# --- ส่วนของการจัดการข้อความ (แยกไว้เผื่อทำ 2 ภาษา) ---
-TEXTS = {
-    "title": "WET: What Eat Today? 🥗",
-    "tier_label": "Tier: 2 - Home Cook 🏆",
-    "warning": "⚠️ 1 รายการใกล้หมดอายุ: ผักบุ้ง (หมดอายุพรุ่งนี้)",
-    "btn_cook": "ทำเมนูจากผักบุ้งเลย",
-    "header_add": "Add New Ingredient",
-    "label_name": "ชื่อวัตถุดิบ",
-    "label_qty": "จำนวน (กรัม)",
-    "label_date": "วันหมดอายุ",
-    "btn_add": "Add to Fridge",
-    "header_menu": "Recipe Suggestions",
-    "msg_suggestion": "เมนูแนะนำวันนี้:"
-}
+# --- การตั้งค่าหน้าจอ ---
+st.set_page_config(page_title="WET: What Eat Today?", page_icon="🥗", layout="wide")
 
-# --- UI ของ WET ---
-st.set_page_config(page_title="WET App", page_icon="🥗")
+# --- ระบบจำลองข้อมูล (ในอนาคตเชื่อม Database) ---
+if 'points' not in st.session_state: st.session_state.points = 50  # เริ่มต้นที่ 50 แต้ม
+if 'fridge' not in st.session_state: st.session_state.fridge = []
 
-st.title(TEXTS["title"])
+# --- ฟังก์ชันคำนวณ Tier ---
+def get_tier_info(points):
+    if points < 100:
+        return "Train Cook", 3, "🐣"
+    elif points < 200:
+        return "Home Cook", 5, "🏆"
+    else:
+        return "Hero Cook", 10, "🌟"
 
-# Sidebar (Tier)
-st.sidebar.header("User Profile")
-st.sidebar.write(TEXTS["tier_label"])
-st.sidebar.progress(85)
+tier_name, daily_limit, icon = get_tier_info(st.session_state.points)
 
-# Alert Section
-st.warning(TEXTS["warning"])
-if st.button(TEXTS["btn_cook"]):
-    st.success("AI แนะนำ: ผัดผักบุ้งไฟแดง!")
+# --- แถบ Sidebar (แสดงสถานะ) ---
+st.sidebar.title(f"{icon} {tier_name}")
+st.sidebar.write(f"คะแนนสะสม: {st.session_state.points} แต้ม")
+st.sidebar.progress(min(st.session_state.points / 200, 1.0))
+st.sidebar.info(f"โควต้าเมนู AI: {daily_limit} เมนู/วัน")
 
-# Add Ingredient Section
-st.subheader(TEXTS["header_add"])
-name = st.text_input(TEXTS["label_name"])
-qty = st.number_input(TEXTS["label_qty"], min_value=0)
-date = st.date_input(TEXTS["label_date"])
-if st.button(TEXTS["btn_add"]):
-    st.balloons()
-    st.write(f"เพิ่ม {name} เข้าตู้เย็นแล้ว!")
+# --- หน้าหลัก (Dashboard) ---
+st.title("WET: What Eat Today? 🥗")
+tab1, tab2, tab3 = st.tabs(["Dashboard", "Add Ingredient", "Recipe AI"])
 
-# Menu Section
-st.subheader(TEXTS["header_menu"])
-st.info(TEXTS["msg_suggestion"])
-st.write("1. กะเพราหมูสับ (ใช้เวลา 6 นาที)")
-st.write("2. ไข่เจียว (ใช้เวลา 4 นาที)")
+with tab1:
+    st.subheader("สถานะตู้เย็น")
+    if not st.session_state.fridge:
+        st.write("ตู้เย็นว่างเปล่า เริ่มเพิ่มวัตถุดิบกันเลย!")
+    else:
+        st.write(st.session_state.fridge)
+
+with tab2:
+    st.subheader("เพิ่มวัตถุดิบ")
+    name = st.text_input("ชื่อวัตถุดิบ")
+    qty = st.number_input("จำนวน (กรัม)", min_value=0)
+    expiry = st.date_input("วันหมดอายุ")
+    if st.button("บันทึกเข้าตู้เย็น"):
+        st.session_state.fridge.append({"name": name, "qty": qty, "expiry": expiry})
+        st.session_state.points += 10 # ได้แต้มจากการเพิ่มของ
+        st.balloons()
+        st.success(f"เพิ่ม {name} เรียบร้อย! ได้รับ 10 แต้ม")
+
+with tab3:
+    st.subheader("เมนูแนะนำอัจฉริยะ")
+    st.write(f"สิทธิ์ของคุณคือ: {daily_limit} เมนู/วัน")
+    
+    if st.button("ให้ AI แนะนำเมนู"):
+        if not st.session_state.fridge:
+            st.error("กรุณาเพิ่มวัตถุดิบก่อนนะครับ!")
+        else:
+            st.write(f"--- แนะนำ {daily_limit} เมนูพิเศษสำหรับ {tier_name} ---")
+            # ในอนาคตจะเชื่อม Gemini API ตรงนี้
+            for i in range(1, daily_limit + 1):
+                st.write(f"{i}. เมนูอร่อยจากวัตถุดิบในตู้เย็น")
