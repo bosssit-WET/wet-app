@@ -38,7 +38,7 @@ with tab2:
     if st.button("บันทึก"):
         st.session_state.fridge.append(name)
         st.session_state.points += 10
-        st.success("เพิ่มแล้ว! ได้รับ 10 แต้ม")
+        st.success(f"เพิ่ม {name} แล้ว! ได้รับ 10 แต้ม")
 
 with tab3:
     st.subheader("Recipe AI")
@@ -48,9 +48,9 @@ with tab3:
         else:
             try:
                 genai.configure(api_key=api_key)
-                # เปลี่ยนมาใช้ gemini-pro ที่เสถียรกว่า
-                model = genai.GenerativeModel('gemini-pro')
-                prompt = f"ฉันมีวัตถุดิบเหล่านี้: {st.session_state.fridge} ช่วยแนะนำ {daily_limit} เมนู"
+                # ใช้รุ่นที่เสถียรที่สุด
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"ฉันมีวัตถุดิบเหล่านี้ในตู้เย็น: {st.session_state.fridge} ช่วยแนะนำ {daily_limit} เมนูอาหารที่ทำจากวัตถุดิบเหล่านี้"
                 response = model.generate_content(prompt)
                 st.write(response.text)
             except Exception as e:
