@@ -1,17 +1,18 @@
 import streamlit as st
 import google.generativeai as genai
 
+# ตั้งค่าหน้าเว็บ
 st.set_page_config(page_title="WET: What Eat Today?", page_icon="🥗", layout="wide")
 
-# --- ส่วนตั้งค่า API Key ---
+# ส่วนรับ API Key
 st.sidebar.title("Settings")
 api_key = st.sidebar.text_input("ใส่ Gemini API Key ของคุณที่นี่", type="password")
 
-# --- ระบบ Session State ---
+# ระบบ Session State
 if 'points' not in st.session_state: st.session_state.points = 50
 if 'fridge' not in st.session_state: st.session_state.fridge = []
 
-# --- ระบบคำนวณ Tier [cite: 34, 40] ---
+# ระบบคำนวณ Tier
 def get_tier_info(points):
     if points < 100: return "Train Cook", 3, "🐣"
     elif points < 200: return "Home Cook", 5, "🏆"
@@ -19,12 +20,12 @@ def get_tier_info(points):
 
 tier_name, daily_limit, icon = get_tier_info(st.session_state.points)
 
-# --- แสดงผล Sidebar ---
+# แสดงผล Sidebar
 st.sidebar.title(f"{icon} {tier_name}")
 st.sidebar.write(f"คะแนนสะสม: {st.session_state.points} แต้ม")
 st.sidebar.progress(min(st.session_state.points / 200, 1.0))
 
-# --- หน้าหลัก ---
+# หน้าหลัก
 st.title("WET: What Eat Today? 🥗")
 tab1, tab2, tab3 = st.tabs(["Dashboard", "Add Ingredient", "Recipe AI"])
 
@@ -47,7 +48,8 @@ with tab3:
         else:
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # เปลี่ยนมาใช้ gemini-pro ที่เสถียรกว่า
+                model = genai.GenerativeModel('gemini-pro')
                 prompt = f"ฉันมีวัตถุดิบเหล่านี้: {st.session_state.fridge} ช่วยแนะนำ {daily_limit} เมนู"
                 response = model.generate_content(prompt)
                 st.write(response.text)
