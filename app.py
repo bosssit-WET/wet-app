@@ -1,61 +1,55 @@
 import streamlit as st
-import datetime
+import google.generativeai as genai
 
-# --- การตั้งค่าหน้าจอ ---
 st.set_page_config(page_title="WET: What Eat Today?", page_icon="🥗", layout="wide")
 
-# --- ระบบจำลองข้อมูล (ในอนาคตเชื่อม Database) ---
-if 'points' not in st.session_state: st.session_state.points = 50  # เริ่มต้นที่ 50 แต้ม
+# --- ส่วนตั้งค่า API Key ---
+st.sidebar.title("Settings")
+api_key = st.sidebar.text_input("ใส่ Gemini API Key ของคุณที่นี่", type="password")
+
+# --- ระบบ Session State ---
+if 'points' not in st.session_state: st.session_state.points = 50
 if 'fridge' not in st.session_state: st.session_state.fridge = []
 
-# --- ฟังก์ชันคำนวณ Tier ---
+# --- ระบบคำนวณ Tier [cite: 34, 40] ---
 def get_tier_info(points):
-    if points < 100:
-        return "Train Cook", 3, "🐣"
-    elif points < 200:
-        return "Home Cook", 5, "🏆"
-    else:
-        return "Hero Cook", 10, "🌟"
+    if points < 100: return "Train Cook", 3, "🐣"
+    elif points < 200: return "Home Cook", 5, "🏆"
+    else: return "Hero Cook", 10, "🌟"
 
 tier_name, daily_limit, icon = get_tier_info(st.session_state.points)
 
-# --- แถบ Sidebar (แสดงสถานะ) ---
+# --- แสดงผล Sidebar ---
 st.sidebar.title(f"{icon} {tier_name}")
 st.sidebar.write(f"คะแนนสะสม: {st.session_state.points} แต้ม")
 st.sidebar.progress(min(st.session_state.points / 200, 1.0))
-st.sidebar.info(f"โควต้าเมนู AI: {daily_limit} เมนู/วัน")
 
-# --- หน้าหลัก (Dashboard) ---
+# --- หน้าหลัก ---
 st.title("WET: What Eat Today? 🥗")
 tab1, tab2, tab3 = st.tabs(["Dashboard", "Add Ingredient", "Recipe AI"])
 
 with tab1:
-    st.subheader("สถานะตู้เย็น")
-    if not st.session_state.fridge:
-        st.write("ตู้เย็นว่างเปล่า เริ่มเพิ่มวัตถุดิบกันเลย!")
-    else:
-        st.write(st.session_state.fridge)
+    st.write(f"สวัสดี {tier_name}! คุณมีสิทธิ์ใช้ AI แนะนำเมนูได้ {daily_limit} ครั้งต่อวัน")
+    st.write("วัตถุดิบในตู้เย็น:", st.session_state.fridge)
 
 with tab2:
-    st.subheader("เพิ่มวัตถุดิบ")
     name = st.text_input("ชื่อวัตถุดิบ")
-    qty = st.number_input("จำนวน (กรัม)", min_value=0)
-    expiry = st.date_input("วันหมดอายุ")
-    if st.button("บันทึกเข้าตู้เย็น"):
-        st.session_state.fridge.append({"name": name, "qty": qty, "expiry": expiry})
-        st.session_state.points += 10 # ได้แต้มจากการเพิ่มของ
-        st.balloons()
-        st.success(f"เพิ่ม {name} เรียบร้อย! ได้รับ 10 แต้ม")
+    if st.button("บันทึก"):
+        st.session_state.fridge.append(name)
+        st.session_state.points += 10
+        st.success("เพิ่มแล้ว! ได้รับ 10 แต้ม")
 
 with tab3:
-    st.subheader("เมนูแนะนำอัจฉริยะ")
-    st.write(f"สิทธิ์ของคุณคือ: {daily_limit} เมนู/วัน")
-    
+    st.subheader("Recipe AI")
     if st.button("ให้ AI แนะนำเมนู"):
-        if not st.session_state.fridge:
-            st.error("กรุณาเพิ่มวัตถุดิบก่อนนะครับ!")
+        if not api_key:
+            st.error("กรุณาใส่ API Key ในแถบ Sidebar ก่อน!")
         else:
-            st.write(f"--- แนะนำ {daily_limit} เมนูพิเศษสำหรับ {tier_name} ---")
-            # ในอนาคตจะเชื่อม Gemini API ตรงนี้
-            for i in range(1, daily_limit + 1):
-                st.write(f"{i}. เมนูอร่อยจากวัตถุดิบในตู้เย็น")
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"ฉันมีวัตถุดิบเหล่านี้: {st.session_state.fridge} ช่วยแนะนำ {daily_limit} เมนู"
+                response = model.generate_content(prompt)
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"เกิดข้อผิดพลาด: {e}")
